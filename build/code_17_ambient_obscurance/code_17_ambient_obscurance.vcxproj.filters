@@ -1,0 +1,138 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\..\src\code_17_ambient_obscurance\main.cpp" />
+    <ClCompile Include="..\..\3rdparty\imgui\imgui.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\imgui\imgui_draw.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\imgui\backends\imgui_impl_glfw.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\imgui\backends\imgui_impl_opengl3.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\imgui\imgui_tables.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\imgui\imgui_widgets.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\src\common\aabb.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\box3.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\debugging.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\frame_buffer_object.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\game_builder.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\gltf_loader.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\intersection.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\matrix_stack.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\octree.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\path.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\renderable.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\shaders.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\simple_shapes.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\texture.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\trackball.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\common\view_manipulator.h">
+      <Filter>common</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{abc179a2-8142-4140-ba96-ed8e04eba900}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="common">
+      <UniqueIdentifier>{a44b0147-640f-4de3-a619-14ef149e0263}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="imgui">
+      <UniqueIdentifier>{e9d3b241-0a83-45f4-89d2-f109203f8ba9}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\src\code_17_ambient_obscurance\shaders\ao.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_17_ambient_obscurance\shaders\blur.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_17_ambient_obscurance\shaders\blur-avg.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_17_ambient_obscurance\shaders\depthmap.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_17_ambient_obscurance\shaders\depthmap.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_17_ambient_obscurance\shaders\final.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_17_ambient_obscurance\shaders\final.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_17_ambient_obscurance\shaders\flat.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_17_ambient_obscurance\shaders\flat.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_17_ambient_obscurance\shaders\fsq.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_17_ambient_obscurance\shaders\fsq.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_17_ambient_obscurance\shaders\g_buffer.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_17_ambient_obscurance\shaders\g_buffer.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_17_ambient_obscurance\shaders\shadow_mapping.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_17_ambient_obscurance\shaders\shadow_mapping.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_17_ambient_obscurance\shaders\texture.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_17_ambient_obscurance\shaders\texture.vert">
+      <Filter>shaders</Filter>
+    </None>
+  </ItemGroup>
+</Project>
