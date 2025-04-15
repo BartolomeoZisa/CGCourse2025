@@ -354,13 +354,9 @@ int main(int argc , char ** argv)
 	
 
 	std::vector< openscad_loader::prim > _p;
-	for (int i = 0; i < 2;++i) {
-	//	_p.push_back(openscad_loader::prim());
-	//	_p.back().type = 0;
+	for (int i = 0; i < csg_loader.primitives.size();++i) 
 		_p.push_back(*csg_loader.primitives[i]);
-	}
-	int yy = sizeof(openscad_loader::prim);
-//	glBufferData(GL_UNIFORM_BUFFER, sizeof(openscad_loader::prim) * 10, &csg_loader.primitives[0], GL_STATIC_DRAW);
+
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(openscad_loader::prim) * 10, &_p[0], GL_STATIC_DRAW);
 	check_gl_errors(__LINE__, __FILE__);
 	GLuint blockIndex = glGetUniformBlockIndex(raytracer.program, "PrimBlock");
