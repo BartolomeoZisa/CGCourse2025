@@ -1,0 +1,72 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\..\3rdparty\imgui\imgui.cpp">
+      <Filter>shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\imgui\imgui_draw.cpp">
+      <Filter>shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\imgui\backends\imgui_impl_glfw.cpp">
+      <Filter>shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\imgui\backends\imgui_impl_opengl3.cpp">
+      <Filter>shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\imgui\imgui_tables.cpp">
+      <Filter>shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\imgui\imgui_widgets.cpp">
+      <Filter>shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\code_CSG_ray_tracer\main_CSG_ray_tracer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\src\code_CSG_ray_tracer\shaders\flat.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_CSG_ray_tracer\shaders\basic.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_CSG_ray_tracer\shaders\basic.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_CSG_ray_tracer\shaders\cs_raytracer.comp">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_CSG_ray_tracer\shaders\directives.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_CSG_ray_tracer\shaders\flat.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_CSG_ray_tracer\shaders\phong.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_CSG_ray_tracer\shaders\phong_material.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_CSG_ray_tracer\shaders\texture.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\src\code_CSG_ray_tracer\shaders\texture.vert">
+      <Filter>shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{56d0a785-f91a-412e-8b48-f52d43912f0b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="imgui">
+      <UniqueIdentifier>{9c374623-946b-446f-8e95-13f6c2aa0437}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="common">
+      <UniqueIdentifier>{0609d906-b2d5-42da-acf9-29110b13bb15}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\src\common\openscad_loader.h">
+      <Filter>common</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

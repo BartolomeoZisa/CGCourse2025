@@ -5,6 +5,7 @@
 !/3rdparty/glm
 !/3rdparty/glm/include
 !/3rdparty/glm/include/glm
+!/3rdparty/pegtl
 /.vscode
 /build/.vs
 /build/*/x64

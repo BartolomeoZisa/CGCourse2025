@@ -1,0 +1,391 @@
+
+
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(rgba32f, binding = 0) uniform image2D imgOutput;
+
+uniform mat4 uProjInv;
+uniform mat4 uViewInv;
+uniform mat4 uModelInv;
+uniform vec3 uLDir;
+
+
+// Define the struct in GLSL
+struct Prim {
+    mat4 m;       // primitive frame
+    int type;     // Integer type (0 = sphere, 1 = cube, 2 = cylinder)
+    float data;   // Floating-point data (radius for sphere, etc.
+    int  id_node ;
+    int pad;
+};
+
+
+
+// Uniform block to hold an array of `Prim` structs
+layout(std140, binding = 0) uniform PrimBlock {
+    Prim prims[10];  // Array of 10 Prim structs (for example)
+};
+
+uniform int uPrimSize; // how many primitives
+uniform int uOpsDepth; // deepest node
+uniform int uOps[64];  // ops[i] = 0 - union, 1 - interection, 2 - difference
+
+struct HitInfo {
+    float t;
+    vec3 p;
+    vec3 n;
+    PhongMaterial m;
+    bool hit;
+};
+
+struct Intervals{
+ int n;
+ float in_out[20];
+ HitInfo nfo[20];
+};
+
+
+Intervals itvs[64]; // for each node, the list of intersections even = entry, odd = exit
+
+mat3 create_axes(in vec3 x_axis, in vec3 norm){
+    mat3 axes;
+    axes[0] = normalize(x_axis);
+    vec3 y_axis = normalize(cross(norm,axes[0]));
+    vec3 z_axis = normalize(cross(axes[0],y_axis));
+
+    axes[1] = y_axis;
+    axes[2] = z_axis;
+    axes = transpose(axes);
+    return axes;
+}
+
+struct Ray {
+    vec3 orig;
+    vec3 dir;
+};
+
+struct Sphere {
+    vec3 center;
+    float radius;
+    PhongMaterial material; 
+};
+
+struct Quad{
+    mat3 axes;
+    vec3 pos;
+    vec2 size;
+    PhongMaterial material; 
+};
+
+Sphere s0;
+Quad q0;
+
+
+
+
+// Initialize a default HitInfo struct
+HitInfo defaultHitInfo() {
+    HitInfo h;
+    h.t = 1e30; // A large number to represent no hit
+    h.hit = false;
+    return h;
+}
+
+bool hit_sphere(Ray r, Sphere s, out HitInfo nfo) {
+    float A = dot(r.dir, r.dir);
+    float B = dot(r.dir, r.orig - s.center) * 2.0;
+    float C = dot(r.orig - s.center, r.orig - s.center) - s.radius * s.radius;
+
+    float delta = B * B - 4.0 * A * C;
+
+    if (delta < 0.0)
+        return false;  
+
+    float t1 = (-B - sqrt(delta)) / (2.0 * A);
+    float t2 = (-B + sqrt(delta)) / (2.0 * A);
+
+    float t_min = min(t1, t2);
+
+    if (t_min < 0.0)
+        t_min = max(t1, t2);
+
+    vec3 p = r.orig + r.dir * t_min;
+    vec3 n = normalize(p - s.center);
+    
+    nfo.t = t_min;
+    nfo.p = p;
+    nfo.n = n;
+    nfo.m = s.material;
+    nfo.hit = (t_min > 0.0);
+
+    return true;
+}
+
+Intervals intersect_sphere(Ray r, Sphere s){
+    Intervals iv;
+    iv.n=0;
+    
+
+    float A = dot(r.dir, r.dir);
+    float B = dot(r.dir, r.orig - s.center) * 2.0;
+    float C = dot(r.orig - s.center, r.orig - s.center) - s.radius * s.radius;
+
+    float delta = B * B - 4.0 * A * C;
+
+    if (delta < 0.0)
+        return iv;  
+
+    float t1 = (-B - sqrt(delta)) / (2.0 * A);
+    float t2 = (-B + sqrt(delta)) / (2.0 * A);
+
+
+    float t_min,t_max;
+    if(t1<t2){
+            t_min = t1;
+            t_max = t2;
+        }else
+        {
+            t_min = t2;
+            t_max = t1;
+        }
+
+    if (t_min < 0.0)
+        return iv;
+
+    
+    vec3 p = r.orig + r.dir * t_min;
+    vec3 n = normalize(p - s.center);
+    
+    iv.in_out[0] = t_min;
+    iv.nfo[0].n  = n;
+
+    p = r.orig + r.dir * t_max;
+    n = normalize(p - s.center);
+
+    iv.in_out[1] = t_max;
+    iv.nfo[1].n  = n;
+    iv.n=2;
+    return iv;
+}
+
+
+bool hit_quad( Ray r,  Quad q, out HitInfo nfo){
+    
+    nfo.hit = false;
+
+    vec3 pos_frame  = (q.axes * r.orig - q.axes*q.pos);
+    vec3 dir_frame = q.axes * r.dir; 
+    
+    if( abs(dir_frame.z) < 0.001)
+        return false;
+    
+    float t = - pos_frame.z / dir_frame.z;
+    
+    if(t < 0.0) return false;
+
+    vec3 intPoint = vec3(pos_frame.x+t*dir_frame.x,pos_frame.y+t*dir_frame.y,0.0);
+    if(intPoint.x < -q.size.x/2.0) return false;
+    if(intPoint.y < -q.size.y/2.0) return false;
+    if(intPoint.x >  q.size.x/2.0) return false;
+    if(intPoint.y >  q.size.y/2.0) return false;
+       
+    mat3 axesT = transpose(q.axes);
+    nfo.p = r.orig+t*r.dir;
+    nfo.n = axesT[2];
+    nfo.m = q.material;
+    nfo.t = t;
+    nfo.hit = true;
+    
+    return true;
+}
+
+HitInfo closest(in HitInfo nfo1,in HitInfo nfo2){
+    if(nfo1.t < nfo2.t) return nfo1; else return nfo2;
+}
+
+HitInfo hit_scene(  Ray r,   float m, float M ){
+ HitInfo nfoT;
+ nfoT.hit = false;
+ nfoT.t = M;
+ r.orig += m*r.dir;
+
+// test all the elments of the scene
+ HitInfo cnfo;
+ if ( hit_sphere( r, s0,cnfo)  ) nfoT = closest(cnfo,nfoT); 
+ if ( hit_quad( r, q0,cnfo)  ) nfoT = closest(cnfo,nfoT); 
+ 
+ nfoT.hit =  (nfoT.t < M); 
+ return nfoT;
+}
+
+bool ent(int i){
+    return i%2 == 0;
+}
+HitInfo hit_csg( Ray r,   float m, float M ){
+
+     for(int i = uPrimSize-1; i>=0;--i){
+         Intervals itp;
+        if(prims[i].type == 0){ // it's a sphere
+            vec4 o = prims[i].m*vec4(0.0,0.0,0.0,1.0);
+            Sphere s;
+            s.center = o.xyz;
+            s.radius = prims[i].data;
+            
+            itp =  intersect_sphere(r,s);
+            itvs[prims[i].id_node] = itp;
+  //          if(itp.n>0) {               // debug, check priitives
+   //                 itp.nfo[0].hit = true;
+    //                return itp.nfo[0];
+    //            }
+            }
+        }
+
+    int i = uOpsDepth;
+    while (i>0){
+       
+        if(uOps[i] == 0 ){ // it's a union
+            
+            Intervals itv0 = itvs[i*2 ];
+            Intervals itv1 = itvs[i*2 + 1];
+            int n_in = 0;
+            int i0 = 0;
+            int i1 = 0;
+            bool en = false;
+            float t = 0;
+            int nx_id = 0;
+            while( i0 < itv0.n   &&  i1 < itv1.n){
+                if( itv0.in_out[i0] <= itv1.in_out[i1]  ) {
+                  t = itv0.in_out[i0];
+                  en = ent(i0);
+                  i0++;
+                }
+                else
+                {
+                  t = itv1.in_out[i1];
+                  en = ent(i1);
+                  i1++;
+                }
+                if(en) n_in++; else n_in--;
+
+                if( (en && n_in == 1)  ||           // make a new "in" point
+                    (!en && n_in == 0)       ){     // make a new "out" point
+                        itvs[i].in_out[nx_id++] = t;
+                }
+             }
+
+            while( i0 < itv0.n)
+                itvs[i].in_out[nx_id++] = itv0.in_out[i0++];
+            while( i1 < itv1.n)
+                itvs[i].in_out[nx_id++] = itv1.in_out[i1++];
+
+                itvs[i].n = nx_id;
+        } // end of the case union
+        else
+        if(uOps[i] == 1 ){ // it's an intersection
+            Intervals itv0 = itvs[i*2 ];
+            Intervals itv1 = itvs[i*2 + 1];
+            int n_in = 0;
+            int i0 = 0;
+            int i1 = 0;
+            bool en = false;
+            float t = 0;
+            int nx_id = 0;
+            while( i0 < itv0.n   &&  i1 < itv1.n){
+                if(  itv0.in_out[i0] <= itv1.in_out[i1]  ) {
+                  t = itv0.in_out[i0];
+                  en = ent(i0);
+                  i0++;
+                }
+                else
+                {
+                  t = itv1.in_out[i1];
+                  en = ent(i1);
+                  i1++;
+                }
+                if(en) n_in++; else n_in--;
+                if( (en && n_in == 2)  ||            // make a new "in" point
+                    (!en && n_in == 1)       ){     // make a new "out" point
+                        itvs[i].in_out[nx_id++] = t;
+                }
+             }
+
+             itvs[i].n = nx_id;
+        }
+      
+    i--;
+    }
+
+
+ HitInfo h;   
+ h.hit = (itvs[1].n > 0);
+ return h;
+}
+
+
+shared vec3 samples[16];
+void main(void) 
+{ 
+	PhongMaterial m = PhongMaterial( uAmbientColor,uDiffuseColor,uSpecularColor,uEmissiveColor,uShininess);
+
+   ivec2 pix = ivec2(gl_GlobalInvocationID.xy);
+
+
+   uint id_sample = 4*gl_LocalInvocationID.y+gl_LocalInvocationID.x;
+
+   imageStore(imgOutput, pix, vec4(0.0,0.0,0.0,1.0) );
+
+   /* create a sphere */
+   s0.center = vec3(0,3,0);
+   s0.radius = 1.0;
+   s0.material = m;
+
+   /* create a quad */
+   q0 =  Quad(create_axes(vec3(1.0,0.0,0.0),vec3(0.0,1.0,0.0)),vec3(0.0,0.0,0.0),vec2(4,4),m);
+
+   
+   Ray r;
+
+   vec2 rc  =vec2(gl_LocalInvocationID.x/4.0,gl_LocalInvocationID.y/4.0);
+
+   vec2 rpos = vec2(-1.0) +  2.0 * vec2(pix+rc)/vec2(512.0);
+
+
+
+   vec4 p0 = uProjInv * vec4(rpos,-1.0,1.0);
+   p0 /= p0.w;
+   vec4 p1 = uProjInv * vec4(rpos, 1.0,1.0);
+   p1 /= p1.w;
+
+   r.orig = (uModelInv*uViewInv * p0).xyz; 
+   r.dir  = normalize((uModelInv* uViewInv * (p1-p0)).xyz);
+   vec3 l_dir = normalize((uModelInv* vec4(uLDir,1.0)).xyz);
+
+  // HitInfo hi = hit_scene(r,0.0,100);
+   HitInfo hi = hit_csg(r,0.0,100);
+   hi.m = m;
+   
+   //samples[id_sample] = vec3(0.0);
+   if(hi.hit==true){
+        vec3 c = phong(l_dir,-r.dir,hi.n,hi.m,uLightColor);     
+         samples[id_sample] = c;
+         imageStore(imgOutput, pix, vec4(c,1.0) );
+        }
+
+        
+    // imageStore(imgOutput, pix, vec4(prims[1].m[1].xyz,1.0) );
+
+
+//    barrier(); // Ensure all threads have written their results before proceeding
+//
+//    // After barrier, we can safely average the results
+//    vec3 finalColor = vec3(0.0);
+//    if (gl_LocalInvocationIndex == 0) {
+//
+//	    for (uint i = 0; i < 16; ++i) {
+//		    finalColor += samples[i];
+//	    }
+//	    finalColor /= 16.0;
+//
+//	    // Write the averaged color to the output image
+//	    imageStore(imgOutput, pix, vec4(finalColor,1.0));
+//     }
+} 
