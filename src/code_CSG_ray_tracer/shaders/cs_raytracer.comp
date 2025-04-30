@@ -1,6 +1,6 @@
 
 
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 layout(rgba32f, binding = 0) uniform image2D imgOutput;
 
 uniform mat4 uProjInv;
@@ -21,30 +21,37 @@ struct Prim {
 
 
 // Uniform block to hold an array of `Prim` structs
-layout(std140, binding = 0) uniform PrimBlock {
+layout(std140, binding = 0) buffer PrimBlock {
     Prim prims[10];  // Array of 10 Prim structs (for example)
 };
+
 
 uniform int uPrimSize; // how many primitives
 uniform int uOpsDepth; // deepest node
 uniform int uOps[64];  // ops[i] = 0 - union, 1 - interection, 2 - difference
 
+
 struct HitInfo {
-    float t;
-    vec3 p;
     vec3 n;
+    vec3 p;
+    float t;
     PhongMaterial m;
-    bool hit;
 };
+
+
+int n_nfos;
+HitInfo all_nfos[64];
+
 
 struct Intervals{
  int n;
- float in_out[20];
- HitInfo nfo[20];
+ float in_out[4];
+ int id_nfos[4];
 };
 
+Intervals itvs[16]; // for each node, the list of intersections even = entry, odd = exit
 
-Intervals itvs[64]; // for each node, the list of intersections even = entry, odd = exit
+
 
 mat3 create_axes(in vec3 x_axis, in vec3 norm){
     mat3 axes;
@@ -86,7 +93,6 @@ Quad q0;
 HitInfo defaultHitInfo() {
     HitInfo h;
     h.t = 1e30; // A large number to represent no hit
-    h.hit = false;
     return h;
 }
 
@@ -107,6 +113,8 @@ bool hit_sphere(Ray r, Sphere s, out HitInfo nfo) {
 
     if (t_min < 0.0)
         t_min = max(t1, t2);
+    if (t_min < 0.0)
+        return false;
 
     vec3 p = r.orig + r.dir * t_min;
     vec3 n = normalize(p - s.center);
@@ -115,8 +123,7 @@ bool hit_sphere(Ray r, Sphere s, out HitInfo nfo) {
     nfo.p = p;
     nfo.n = n;
     nfo.m = s.material;
-    nfo.hit = (t_min > 0.0);
-
+ 
     return true;
 }
 
@@ -156,21 +163,28 @@ Intervals intersect_sphere(Ray r, Sphere s){
     vec3 n = normalize(p - s.center);
     
     iv.in_out[0] = t_min;
-    iv.nfo[0].n  = n;
+
+    iv.id_nfos[0] = n_nfos;
+    all_nfos[n_nfos].n = n;
+    n_nfos++;
 
     p = r.orig + r.dir * t_max;
     n = normalize(p - s.center);
 
     iv.in_out[1] = t_max;
-    iv.nfo[1].n  = n;
-    iv.n=2;
+    iv.id_nfos[1] = n_nfos;
+
+    iv.id_nfos[1] = n_nfos;
+    all_nfos[n_nfos].n = n;
+    n_nfos++;
+
+    iv.n = 2;
     return iv;
 }
 
 
 bool hit_quad( Ray r,  Quad q, out HitInfo nfo){
     
-    nfo.hit = false;
 
     vec3 pos_frame  = (q.axes * r.orig - q.axes*q.pos);
     vec3 dir_frame = q.axes * r.dir; 
@@ -193,7 +207,6 @@ bool hit_quad( Ray r,  Quad q, out HitInfo nfo){
     nfo.n = axesT[2];
     nfo.m = q.material;
     nfo.t = t;
-    nfo.hit = true;
     
     return true;
 }
@@ -203,17 +216,16 @@ HitInfo closest(in HitInfo nfo1,in HitInfo nfo2){
 }
 
 HitInfo hit_scene(  Ray r,   float m, float M ){
- HitInfo nfoT;
- nfoT.hit = false;
+ HitInfo nfoT = defaultHitInfo();
  nfoT.t = M;
  r.orig += m*r.dir;
 
 // test all the elments of the scene
- HitInfo cnfo;
+ HitInfo cnfo = defaultHitInfo();
  if ( hit_sphere( r, s0,cnfo)  ) nfoT = closest(cnfo,nfoT); 
  if ( hit_quad( r, q0,cnfo)  ) nfoT = closest(cnfo,nfoT); 
  
- nfoT.hit =  (nfoT.t < M); 
+ //nfoT.hit =  (nfoT.t < M); 
  return nfoT;
 }
 
@@ -232,12 +244,17 @@ HitInfo hit_csg( Ray r,   float m, float M ){
             
             itp =  intersect_sphere(r,s);
             itvs[prims[i].id_node] = itp;
-  //          if(itp.n>0) {               // debug, check priitives
-   //                 itp.nfo[0].hit = true;
-    //                return itp.nfo[0];
-    //            }
+
+/*             if(itp.n>0) {               // debug, check primitives
+                     itp.nfo[0].hit = true;
+                    return itp.nfo[0];
+                }
+*/
             }
         }
+
+HitInfo nfo = defaultHitInfo();
+
 
     int i = uOpsDepth;
     while (i>0){
@@ -252,9 +269,13 @@ HitInfo hit_csg( Ray r,   float m, float M ){
             bool en = false;
             float t = 0;
             int nx_id = 0;
+           
             while( i0 < itv0.n   &&  i1 < itv1.n){
                 if( itv0.in_out[i0] <= itv1.in_out[i1]  ) {
                   t = itv0.in_out[i0];
+                  nfo = all_nfos[itv0.id_nfos[i0]];
+                  
+
                   en = ent(i0);
                   i0++;
                 }
@@ -314,10 +335,11 @@ HitInfo hit_csg( Ray r,   float m, float M ){
     i--;
     }
 
+ 
+ if(itvs[1].n > 0)
+  nfo.t = 1;
 
- HitInfo h;   
- h.hit = (itvs[1].n > 0);
- return h;
+ return nfo;
 }
 
 
@@ -344,9 +366,10 @@ void main(void)
    
    Ray r;
 
-   vec2 rc  =vec2(gl_LocalInvocationID.x/4.0,gl_LocalInvocationID.y/4.0);
+   vec2 rc  =vec2(gl_LocalInvocationID.x/16.0,gl_LocalInvocationID.y/16.0);
 
-   vec2 rpos = vec2(-1.0) +  2.0 * vec2(pix+rc)/vec2(512.0);
+   //vec2 rpos = vec2(-1.0) +  2.0 * vec2(pix+rc)/vec2(512.0);
+   vec2 rpos = vec2(-1.0) +  2.0 * vec2(pix)/vec2(512.0);
 
 
 
@@ -364,9 +387,10 @@ void main(void)
    hi.m = m;
    
    //samples[id_sample] = vec3(0.0);
-   if(hi.hit==true){
+   if(hi.t != 1e30){
+//        vec3 c = phong(l_dir,-r.dir,hi.n,hi.m,uLightColor);     
         vec3 c = phong(l_dir,-r.dir,hi.n,hi.m,uLightColor);     
-         samples[id_sample] = c;
+           samples[id_sample] = c;
          imageStore(imgOutput, pix, vec4(c,1.0) );
         }
 

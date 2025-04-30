@@ -337,7 +337,7 @@ int main(int argc , char ** argv)
 	glUseProgram(raytracer.program);
 	glUniform1i(raytracer["uPrimSize"], csg_loader.primitives.size());
 	check_gl_errors(__LINE__, __FILE__);
-	glUniform1iv(raytracer["uOps"], 64, &csg_loader.operations[0]);
+	glUniform1iv(raytracer["uOps"], 16, &csg_loader.operations[0]);
 	check_gl_errors(__LINE__, __FILE__);
 	int lastOp = 0;
 	for (int i = 0; i < csg_loader.operations.size();++i) if (csg_loader.operations[i] != -1) lastOp = i;
@@ -345,9 +345,9 @@ int main(int argc , char ** argv)
 	check_gl_errors(__LINE__, __FILE__);
 
 	check_gl_errors(__LINE__, __FILE__);
-	GLuint ubo;
-	glGenBuffers(1, &ubo);
-	glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+	GLuint ssbo;
+	glGenBuffers(1, &ssbo);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
 
 
 	std::vector< openscad_loader::prim > _test;
@@ -357,16 +357,9 @@ int main(int argc , char ** argv)
 	for (int i = 0; i < csg_loader.primitives.size();++i) 
 		_p.push_back(*csg_loader.primitives[i]);
 
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(openscad_loader::prim) * 10, &_p[0], GL_STATIC_DRAW);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(openscad_loader::prim) * 10, &_p[0], GL_STATIC_DRAW);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo);          // Same binding = 0
 	check_gl_errors(__LINE__, __FILE__);
-	GLuint blockIndex = glGetUniformBlockIndex(raytracer.program, "PrimBlock");
-	glUniformBlockBinding(raytracer.program, blockIndex, 0);  // Binding = 0
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);          // Same binding = 0
-	check_gl_errors(__LINE__, __FILE__);
-
-	GLint dataSize = 0;
-	glGetActiveUniformBlockiv(raytracer.program, blockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &dataSize);
-	std::cout << "Uniform block size: " << dataSize << std::endl;
 
 
 	// create a texture    
@@ -491,7 +484,7 @@ int main(int argc , char ** argv)
 			glUniform3fv(raytracer["uLightColor"], 1, &l_color[0]);
 			
 			// dispatch 16x16x1 workgorups
-			glDispatchCompute(512   , 512  , 1);
+			glDispatchCompute(512 / 16   , 512 / 16 , 1);
 			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 

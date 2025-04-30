@@ -81,6 +81,15 @@ struct shader {
 	}
 
 	void  create_program(std::vector<std::string> vert_shader, std::vector<std::string> frag_shader) {
+		std::cout << "creating program\n vertex shader " <<  std::endl;
+		for (unsigned int ii = 0; ii < vert_shader.size(); ++ii)
+			std::cout << vert_shader[ii];
+
+		std::cout << "\n fragment shader " << std::endl;
+
+		for (unsigned int ii = 0; ii < frag_shader.size(); ++ii)
+			std::cout << frag_shader[ii];
+
 		std::string vertex_shader_src_code;
 		for(unsigned int i=0; i < vert_shader.size();++i)
 			vertex_shader_src_code +=  textFileRead(vert_shader[i].c_str())+ "\n";
