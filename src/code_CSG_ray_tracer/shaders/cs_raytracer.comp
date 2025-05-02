@@ -33,23 +33,27 @@ uniform int uOps[64];  // ops[i] = 0 - union, 1 - interection, 2 - difference
 
 struct HitInfo {
     vec3 n;
+//    float _p;
     vec3 p;
+//    float _p1;
     float t;
+  //  vec3 _p2;
     PhongMaterial m;
 };
 
 
-int n_nfos;
-HitInfo all_nfos[64];
-
 
 struct Intervals{
  int n;
- float in_out[4];
- int id_nfos[4];
+ float in_out[12];
+ int id_nfos[12];
+ bool flip_n[12];
 };
 
-Intervals itvs[16]; // for each node, the list of intersections even = entry, odd = exit
+Intervals itvs[32]; // for each node, the list of intersections even = entry, odd = exit
+int n_nfos;
+HitInfo all_nfos[64];
+
 
 
 
@@ -127,8 +131,7 @@ bool hit_sphere(Ray r, Sphere s, out HitInfo nfo) {
     return true;
 }
 
-Intervals intersect_sphere(Ray r, Sphere s){
-    Intervals iv;
+void  intersect_sphere(Ray r, Sphere s, out Intervals iv){
     iv.n=0;
     
 
@@ -139,7 +142,7 @@ Intervals intersect_sphere(Ray r, Sphere s){
     float delta = B * B - 4.0 * A * C;
 
     if (delta < 0.0)
-        return iv;  
+        return;  
 
     float t1 = (-B - sqrt(delta)) / (2.0 * A);
     float t2 = (-B + sqrt(delta)) / (2.0 * A);
@@ -156,7 +159,7 @@ Intervals intersect_sphere(Ray r, Sphere s){
         }
 
     if (t_min < 0.0)
-        return iv;
+        return ;
 
     
     vec3 p = r.orig + r.dir * t_min;
@@ -166,20 +169,20 @@ Intervals intersect_sphere(Ray r, Sphere s){
 
     iv.id_nfos[0] = n_nfos;
     all_nfos[n_nfos].n = n;
+    all_nfos[n_nfos].m = PhongMaterial( uAmbientColor,uDiffuseColor,uSpecularColor,uEmissiveColor,uShininess);
     n_nfos++;
 
     p = r.orig + r.dir * t_max;
     n = normalize(p - s.center);
 
     iv.in_out[1] = t_max;
-    iv.id_nfos[1] = n_nfos;
 
     iv.id_nfos[1] = n_nfos;
     all_nfos[n_nfos].n = n;
+    all_nfos[n_nfos].m = PhongMaterial( uAmbientColor,uDiffuseColor,uSpecularColor,uEmissiveColor,uShininess);
     n_nfos++;
 
     iv.n = 2;
-    return iv;
 }
 
 
@@ -233,7 +236,9 @@ bool ent(int i){
     return i%2 == 0;
 }
 HitInfo hit_csg( Ray r,   float m, float M ){
+    HitInfo nfo = defaultHitInfo();
 
+    // tun over all the primitives and collect intervals
      for(int i = uPrimSize-1; i>=0;--i){
          Intervals itp;
         if(prims[i].type == 0){ // it's a sphere
@@ -242,20 +247,23 @@ HitInfo hit_csg( Ray r,   float m, float M ){
             s.center = o.xyz;
             s.radius = prims[i].data;
             
-            itp =  intersect_sphere(r,s);
+            intersect_sphere(r,s,itp);
             itvs[prims[i].id_node] = itp;
 
-/*             if(itp.n>0) {               // debug, check primitives
-                     itp.nfo[0].hit = true;
-                    return itp.nfo[0];
-                }
-*/
+            
+            //debug, comment out
+//              if(itp.n > 0){  
+//                nfo  = all_nfos[itp.id_nfos[0]];
+//                nfo.t = 1;
+//                return nfo;
+//              }
+ 
             }
         }
+        
 
-HitInfo nfo = defaultHitInfo();
-
-
+    // visit the heapt tree bottom up
+    int id_nfos;
     int i = uOpsDepth;
     while (i>0){
        
@@ -272,32 +280,35 @@ HitInfo nfo = defaultHitInfo();
            
             while( i0 < itv0.n   &&  i1 < itv1.n){
                 if( itv0.in_out[i0] <= itv1.in_out[i1]  ) {
-                  t = itv0.in_out[i0];
-                  nfo = all_nfos[itv0.id_nfos[i0]];
-                  
-
+                  t = itv0.in_out[i0];         
                   en = ent(i0);
+                  id_nfos = itv0.id_nfos[i0];
                   i0++;
                 }
                 else
                 {
                   t = itv1.in_out[i1];
                   en = ent(i1);
+                  id_nfos = itv1.id_nfos[i1];
                   i1++;
                 }
                 if(en) n_in++; else n_in--;
 
                 if( (en && n_in == 1)  ||           // make a new "in" point
                     (!en && n_in == 0)       ){     // make a new "out" point
+                        itvs[i].id_nfos[nx_id] = id_nfos;
                         itvs[i].in_out[nx_id++] = t;
                 }
              }
 
-            while( i0 < itv0.n)
-                itvs[i].in_out[nx_id++] = itv0.in_out[i0++];
-            while( i1 < itv1.n)
-                itvs[i].in_out[nx_id++] = itv1.in_out[i1++];
-
+            while( i0 < itv0.n){
+                       itvs[i].id_nfos[nx_id] = itv0.id_nfos[i0];
+                       itvs[i].in_out[nx_id++] = itv0.in_out[i0++];
+                       }
+            while( i1 < itv1.n){
+                       itvs[i].id_nfos[nx_id] = itv1.id_nfos[i1];
+                       itvs[i].in_out[nx_id++] = itv1.in_out[i1++];
+                }
                 itvs[i].n = nx_id;
         } // end of the case union
         else
@@ -314,31 +325,83 @@ HitInfo nfo = defaultHitInfo();
                 if(  itv0.in_out[i0] <= itv1.in_out[i1]  ) {
                   t = itv0.in_out[i0];
                   en = ent(i0);
+                  id_nfos = itv0.id_nfos[i0];
                   i0++;
                 }
                 else
                 {
                   t = itv1.in_out[i1];
                   en = ent(i1);
+                  id_nfos = itv1.id_nfos[i1];
                   i1++;
                 }
                 if(en) n_in++; else n_in--;
                 if( (en && n_in == 2)  ||            // make a new "in" point
                     (!en && n_in == 1)       ){     // make a new "out" point
+                        itvs[i].id_nfos[nx_id] = id_nfos;
                         itvs[i].in_out[nx_id++] = t;
                 }
              }
 
              itvs[i].n = nx_id;
         }
-      
+        else
+        if(uOps[i] == 2 ){ // it's a difference
+            Intervals itv0 = itvs[i*2 ];
+            Intervals itv1 = itvs[i*2 + 1];
+            bool i0_in = false;
+            bool i1_in = false;
+            bool in_diff = false;
+            bool ch_1 = false;
+            int i0 = 0;
+            int i1 = 0;
+            float t = 0;
+            int nx_id = 0;
+            while( i0 < itv0.n   &&  i1 < itv1.n){
+                if(  itv0.in_out[i0] <= itv1.in_out[i1]  ) {
+                  t = itv0.in_out[i0];
+                  i0_in = ent(i0);
+                  id_nfos = itv0.id_nfos[i0];
+                  i0++;
+                }
+                else
+                {
+                  t = itv1.in_out[i1];
+                  ch_1 = (i1_in != ent(i1));
+                  i1_in = ent(i1);
+                  id_nfos = itv1.id_nfos[i1];
+                  i1++;
+                }
+               if(in_diff){// make a new "out" point
+                        itvs[i].id_nfos[nx_id] = id_nfos;
+                        itvs[i].flip_n[nx_id] = i1_in;
+                        itvs[i].in_out[nx_id++] = t;
+                        in_diff = false;
+                        }
+                if(  i0_in && !i1_in )    // make a new "in" point
+                     {  in_diff = true;    
+                        itvs[i].id_nfos[nx_id] = id_nfos;
+                        itvs[i].flip_n[nx_id] = ch_1;
+                        itvs[i].in_out[nx_id++] = t;
+                    }
+             }
+             while( i0 < itv0.n){
+                       itvs[i].id_nfos[nx_id] = itv0.id_nfos[i0];
+                       itvs[i].flip_n[nx_id] = false;
+                       itvs[i].in_out[nx_id++] = itv0.in_out[i0++];
+                       }
+             
+             itvs[i].n = nx_id;
+        }
     i--;
     }
 
  
- if(itvs[1].n > 0)
-  nfo.t = 1;
-
+ if(itvs[1].n > 0){
+      nfo  = all_nfos[itvs[1].id_nfos[0]] ;
+      if(itvs[1].flip_n[0])
+        nfo.n = -nfo.n;
+      }
  return nfo;
 }
 
@@ -346,6 +409,7 @@ HitInfo nfo = defaultHitInfo();
 shared vec3 samples[16];
 void main(void) 
 { 
+    n_nfos = 0;
 	PhongMaterial m = PhongMaterial( uAmbientColor,uDiffuseColor,uSpecularColor,uEmissiveColor,uShininess);
 
    ivec2 pix = ivec2(gl_GlobalInvocationID.xy);
@@ -363,7 +427,6 @@ void main(void)
    /* create a quad */
    q0 =  Quad(create_axes(vec3(1.0,0.0,0.0),vec3(0.0,1.0,0.0)),vec3(0.0,0.0,0.0),vec2(4,4),m);
 
-   
    Ray r;
 
    vec2 rc  =vec2(gl_LocalInvocationID.x/16.0,gl_LocalInvocationID.y/16.0);
@@ -382,18 +445,20 @@ void main(void)
    r.dir  = normalize((uModelInv* uViewInv * (p1-p0)).xyz);
    vec3 l_dir = normalize((uModelInv* vec4(uLDir,1.0)).xyz);
 
+   vec3 c = vec3(0.2,0.2,0.3);
   // HitInfo hi = hit_scene(r,0.0,100);
    HitInfo hi = hit_csg(r,0.0,100);
-   hi.m = m;
-   
+   // hi.m = m;
+   imageStore(imgOutput, pix, vec4(0.3,0.4,0.5,1.0) );
    //samples[id_sample] = vec3(0.0);
    if(hi.t != 1e30){
-//        vec3 c = phong(l_dir,-r.dir,hi.n,hi.m,uLightColor);     
-        vec3 c = phong(l_dir,-r.dir,hi.n,hi.m,uLightColor);     
-           samples[id_sample] = c;
+//        vec3 c = phong(l_dir,-r.dir,hi.n,PhongMaterial(vec3(1),vec3(1),vec3(1),vec3(1),0.0),uLightColor);     
+         vec3 c = phong(l_dir,-r.dir,hi.n,hi.m,uLightColor);     
+         //samples[id_sample] = c;
          imageStore(imgOutput, pix, vec4(c,1.0) );
         }
-
+//    if(n_nfos> 0)
+//         imageStore(imgOutput, pix, vec4(1,0,0,1.0) );
         
     // imageStore(imgOutput, pix, vec4(prims[1].m[1].xyz,1.0) );
 

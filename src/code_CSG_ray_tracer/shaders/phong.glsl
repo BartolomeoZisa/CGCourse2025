@@ -13,7 +13,7 @@ vec3 phong ( vec3 L, vec3 V, vec3 N, PhongMaterial m,vec3 light_color){
 	V = normalize(V);
 
 	float LN = max(0.0,dot(L,N));
-
+	
 	vec3 R = -L+2*dot(L,N)*N;
 	
 	float spec = ((LN>0.f)?1.f:0.f) * pow(max(0.0,dot(V,R)) ,m.shininess);
