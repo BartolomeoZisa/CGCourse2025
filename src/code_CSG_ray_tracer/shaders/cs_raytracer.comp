@@ -33,11 +33,8 @@ uniform int uOps[64];  // ops[i] = 0 - union, 1 - interection, 2 - difference
 
 struct HitInfo {
     vec3 n;
-//    float _p;
     vec3 p;
-//    float _p1;
     float t;
-  //  vec3 _p2;
     PhongMaterial m;
 };
 
@@ -248,8 +245,11 @@ HitInfo hit_csg( Ray r,   float m, float M ){
             s.radius = prims[i].data;
             
             intersect_sphere(r,s,itp);
-            itvs[prims[i].id_node] = itp;
+            for(int ii = 0; ii < itp.n;++ii)
+                itp.flip_n[ii] = false;
 
+            itvs[prims[i].id_node] = itp;
+                
             
             //debug, comment out
 //              if(itp.n > 0){  
@@ -275,6 +275,7 @@ HitInfo hit_csg( Ray r,   float m, float M ){
             int i0 = 0;
             int i1 = 0;
             bool en = false;
+            bool flip = false;
             float t = 0;
             int nx_id = 0;
            
@@ -283,6 +284,7 @@ HitInfo hit_csg( Ray r,   float m, float M ){
                   t = itv0.in_out[i0];         
                   en = ent(i0);
                   id_nfos = itv0.id_nfos[i0];
+                  flip = itv0.flip_n[i0];
                   i0++;
                 }
                 else
@@ -290,6 +292,7 @@ HitInfo hit_csg( Ray r,   float m, float M ){
                   t = itv1.in_out[i1];
                   en = ent(i1);
                   id_nfos = itv1.id_nfos[i1];
+                  flip = itv1.flip_n[i1];
                   i1++;
                 }
                 if(en) n_in++; else n_in--;
@@ -297,16 +300,19 @@ HitInfo hit_csg( Ray r,   float m, float M ){
                 if( (en && n_in == 1)  ||           // make a new "in" point
                     (!en && n_in == 0)       ){     // make a new "out" point
                         itvs[i].id_nfos[nx_id] = id_nfos;
+                        itvs[i].flip_n[nx_id] = flip;
                         itvs[i].in_out[nx_id++] = t;
                 }
              }
 
             while( i0 < itv0.n){
                        itvs[i].id_nfos[nx_id] = itv0.id_nfos[i0];
+                       itvs[i].flip_n[nx_id] = itv0.flip_n[i0];
                        itvs[i].in_out[nx_id++] = itv0.in_out[i0++];
                        }
             while( i1 < itv1.n){
                        itvs[i].id_nfos[nx_id] = itv1.id_nfos[i1];
+                       itvs[i].flip_n[nx_id] = itv1.flip_n[i1];
                        itvs[i].in_out[nx_id++] = itv1.in_out[i1++];
                 }
                 itvs[i].n = nx_id;
@@ -319,6 +325,7 @@ HitInfo hit_csg( Ray r,   float m, float M ){
             int i0 = 0;
             int i1 = 0;
             bool en = false;
+            bool flip = false;
             float t = 0;
             int nx_id = 0;
             while( i0 < itv0.n   &&  i1 < itv1.n){
@@ -326,6 +333,7 @@ HitInfo hit_csg( Ray r,   float m, float M ){
                   t = itv0.in_out[i0];
                   en = ent(i0);
                   id_nfos = itv0.id_nfos[i0];
+                  flip = itv0.flip_n[i0];
                   i0++;
                 }
                 else
@@ -333,12 +341,14 @@ HitInfo hit_csg( Ray r,   float m, float M ){
                   t = itv1.in_out[i1];
                   en = ent(i1);
                   id_nfos = itv1.id_nfos[i1];
+                  flip = itv1.flip_n[i1];
                   i1++;
                 }
                 if(en) n_in++; else n_in--;
                 if( (en && n_in == 2)  ||            // make a new "in" point
                     (!en && n_in == 1)       ){     // make a new "out" point
                         itvs[i].id_nfos[nx_id] = id_nfos;
+                        itvs[i].flip_n[nx_id] = flip;
                         itvs[i].in_out[nx_id++] = t;
                 }
              }
@@ -360,6 +370,7 @@ HitInfo hit_csg( Ray r,   float m, float M ){
             while( i0 < itv0.n   &&  i1 < itv1.n){
                 if(  itv0.in_out[i0] <= itv1.in_out[i1]  ) {
                   t = itv0.in_out[i0];
+                  ch_1 = false;
                   i0_in = ent(i0);
                   id_nfos = itv0.id_nfos[i0];
                   i0++;
@@ -374,7 +385,7 @@ HitInfo hit_csg( Ray r,   float m, float M ){
                 }
                if(in_diff){// make a new "out" point
                         itvs[i].id_nfos[nx_id] = id_nfos;
-                        itvs[i].flip_n[nx_id] = i1_in;
+                        itvs[i].flip_n[nx_id] = ch_1;
                         itvs[i].in_out[nx_id++] = t;
                         in_diff = false;
                         }
@@ -397,10 +408,12 @@ HitInfo hit_csg( Ray r,   float m, float M ){
     }
 
  
- if(itvs[1].n > 0){
+ if(itvs[1].n > 0){ // the root is node an empty interval
       nfo  = all_nfos[itvs[1].id_nfos[0]] ;
-      if(itvs[1].flip_n[0])
-        nfo.n = -nfo.n;
+      if(itvs[1].flip_n[0]){ // flip is only used for A \ B (difference)
+            nfo.n = -nfo.n;
+            nfo.m.diffuse_color = vec3(0,0,1);
+        }
       }
  return nfo;
 }
